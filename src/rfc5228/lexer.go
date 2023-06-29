@@ -319,8 +319,8 @@ func lexStart(l *lexer) stateFn {
 		case r == StringListOpen:
 			return lexStringList
 		case r == COMMA:
-			l.next()   // absorb ,
-			l.ignore() // ignore ,
+			l.next()   // we only peeked `r`, so we need to absorb it
+			l.ignore() // and we ignore it because we don't want it
 		case r == StringListClose:
 			return lexStringList
 		case r == COLON:
@@ -332,7 +332,7 @@ func lexStart(l *lexer) stateFn {
 		case r == TestListClose:
 			return lexTestList
 		case r == SEMICOLON:
-			l.next()
+			l.next() // we only peeked `r`, so we need to absorb it
 			return l.emit(itemEnd)
 		case r == BlockOpening:
 			return lexBlock
@@ -532,15 +532,14 @@ func lexMultiline(l *lexer) stateFn {
 	}
 }
 
+// lexStringList scans a string-list open or close tag
 func lexStringList(l *lexer) stateFn {
-	if l.acceptExact(StringListOpen) {
+	switch r := l.next(); {
+	case r == StringListOpen:
 		return l.emit(itemStringListOpen)
-	}
-
-	if l.acceptExact(StringListClose) {
+	case r == StringListClose:
 		return l.emit(itemStringListClose)
 	}
-
 	return l.errorf("string list open/close expected")
 }
 
@@ -580,26 +579,22 @@ iter:
 
 // lexTestList scans an test-list open and closing tag
 func lexTestList(l *lexer) stateFn {
-	if l.acceptExact(TestListOpen) {
+	switch r := l.next(); {
+	case r == TestListOpen:
 		return l.emit(itemTestListOpen)
-	}
-
-	if l.acceptExact(TestListClose) {
+	case r == TestListClose:
 		return l.emit(itemTestListClose)
 	}
-
 	return l.errorf("test-list open/close expected")
 }
 
 // lexBlock scans an test-list open and closing tag
 func lexBlock(l *lexer) stateFn {
-	if l.acceptExact(BlockOpening) {
-		return l.emit(itemBlockOpen)
+	switch r := l.next(); {
+	case r == BlockOpening:
+		return l.emit(itemTestListOpen)
+	case r == TestListClose:
+		return l.emit(itemTestListClose)
 	}
-
-	if l.acceptExact(BlockClosing) {
-		return l.emit(itemBlockClose)
-	}
-
 	return l.errorf("block open/close expected")
 }

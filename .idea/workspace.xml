@@ -112,7 +112,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1687446309966</updated>
-      <workItem from="1687446311181" duration="104833000" />
+      <workItem from="1687446311181" duration="105174000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <created>1687779065631</created>
@@ -135,7 +135,14 @@
       <option name="project" value="LOCAL" />
       <updated>1688080145169</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="text marker">
+      <created>1688080213616</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1688080213616</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -144,7 +151,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial commit" />
     <MESSAGE value="Lexer complete" />
-    <option name="LAST_COMMIT_MESSAGE" value="Lexer complete" />
+    <MESSAGE value="text marker" />
+    <option name="LAST_COMMIT_MESSAGE" value="text marker" />
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>
