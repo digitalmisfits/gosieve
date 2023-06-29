@@ -60,6 +60,8 @@ const (
 	TestListClose   = ')'
 )
 
+const textMarker = "text:"
+
 const EOF = -1
 
 type scope int64
@@ -471,8 +473,6 @@ func lexQuotedString(l *lexer) stateFn {
 		}
 	}
 }
-
-const textMarker = "text:"
 
 // lexMultiline scans a multi-line string
 func lexMultiline(l *lexer) stateFn {
