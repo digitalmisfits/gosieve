@@ -16,7 +16,7 @@ func TestLexer(t *testing.T) {
 			fmt.Printf("error = [%s]\n", i.val)
 			return
 		case i.typ == itemEOF:
-			fmt.Printf("eof = [%s]\n", i.val)
+			fmt.Printf("EOF = [%s]\n", i.val)
 			return
 		default:
 			fmt.Printf("%s\n", i)
