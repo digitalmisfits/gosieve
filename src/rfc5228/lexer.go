@@ -26,7 +26,15 @@ const (
 	itemEOF
 	itemComment
 	itemIdentifier
+	itemEnd
 	itemString
+	itemNumeric
+	itemStringListOpen
+	itemStringListClose
+	itemTestListOpen
+	itemTestListClose
+	itemBlockOpen
+	itemBlockClose
 )
 
 const (
@@ -36,14 +44,20 @@ const (
 	DQUOTE          = '"'
 	BACKSLASH       = '\\'
 	DOT             = '.'
+	COMMA           = ','
 	STAR            = '*'
 	HTAB            = '\t'
 	SPACE           = ' '
 	HASH            = '#'
 	SLASH           = '/'
 	COLON           = ':'
+	SEMICOLON       = ';'
 	StringListOpen  = '['
 	StringListClose = ']'
+	BlockOpening    = '{'
+	BlockClosing    = '}'
+	TestListOpen    = '('
+	TestListClose   = ')'
 )
 
 const EOF = -1
@@ -124,6 +138,17 @@ func (l *lexer) next() rune {
 func (l *lexer) acceptExact(r rune) bool {
 	if next := l.next(); next == r {
 		return true
+	}
+	l.backup()
+	return false
+}
+
+func (l *lexer) acceptAny(runes []rune) bool {
+	r := l.next()
+	for _, v := range runes {
+		if r == v {
+			return true
+		}
 	}
 	l.backup()
 	return false
@@ -258,12 +283,12 @@ func isAlpha(r rune) bool {
 	return r == '_' || unicode.IsLetter(r)
 }
 
-func isNumeric(r rune) bool {
+func isDigit(r rune) bool {
 	return unicode.IsDigit(r)
 }
 
 func isAlphaNumeric(r rune) bool {
-	return isAlpha(r) || isNumeric(r)
+	return isAlpha(r) || isDigit(r)
 }
 
 func lex(name, input string) *lexer {
@@ -285,22 +310,32 @@ func lexStart(l *lexer) stateFn {
 			return lexWhitespace
 		case isAlpha(r) && l.isNotExactPrefix([]rune(textMarker)):
 			return lexIdentifier
-		case r == '"':
+		case r == DQUOTE:
 			return lexQuotedString
 		case r == 't' && l.isExactPrefix([]rune(textMarker)):
 			return lexMultiline
-		case r == '[':
-			// string-list opening
-		case r == ':':
-			// tag
-		case isNumeric(r):
-			// number
-		case r == '(':
-			// test-list opening
-		case r == ';':
-			// end
-		case r == '{':
-			// block opening
+		case r == StringListOpen:
+			return lexStringList
+		case r == COMMA:
+			l.next()   // absorb ,
+			l.ignore() // ignore ,
+		case r == StringListClose:
+			return lexStringList
+		case r == COLON:
+			return lexTag
+		case isDigit(r):
+			return lexNumeric
+		case r == TestListOpen:
+			return lexTestList
+		case r == TestListClose:
+			return lexTestList
+		case r == SEMICOLON:
+			l.next()
+			return l.emit(itemEnd)
+		case r == BlockOpening:
+			return lexBlock
+		case r == BlockClosing:
+			return lexBlock
 		default:
 			return l.errorf("unexpected rune")
 		}
@@ -342,7 +377,7 @@ func lexBracketComment(l *lexer) stateFn {
 		switch r := l.next(); {
 		case r == EOF:
 			return l.errorf("end of file reached")
-		case isOctetWithout(r, CR, LF):
+		case isOctetWithout(r, CR, LF, STAR):
 			// absorb.
 		case r == CR:
 			if next := l.next(); next != LF {
@@ -400,33 +435,6 @@ func lexIdentifier(l *lexer) stateFn {
 	}
 }
 
-func lexArguments(l *lexer) stateFn {
-	/*
-
-		argument     = string-list / number / tag
-		string-list  = "[" string *("," string) "]" / string
-			                    ; if there is only a single string, the brackets
-			                    ; are optional
-
-			number             = 1*DIGIT [ QUANTIFIER ]
-
-			tag                = ":" identifier
-	*/
-
-	for {
-		switch r := l.next(); {
-		case r == EOF:
-			return l.errorf("end of file reached")
-		case r == StringListOpen:
-
-		case isNumeric(r):
-			break
-		case r == COLON:
-
-		}
-	}
-}
-
 // lexQuotedString scans a quoted string
 func lexQuotedString(l *lexer) stateFn {
 
@@ -461,7 +469,6 @@ func lexQuotedString(l *lexer) stateFn {
 		default:
 			return l.errorf("unexpected character")
 		}
-
 	}
 }
 
@@ -523,4 +530,76 @@ func lexMultiline(l *lexer) stateFn {
 			return l.errorf("unexpected rune")
 		}
 	}
+}
+
+func lexStringList(l *lexer) stateFn {
+	if l.acceptExact(StringListOpen) {
+		return l.emit(itemStringListOpen)
+	}
+
+	if l.acceptExact(StringListClose) {
+		return l.emit(itemStringListClose)
+	}
+
+	return l.errorf("string list open/close expected")
+}
+
+// lexTag scans a tag
+func lexTag(l *lexer) stateFn {
+	if !l.acceptExact(COLON) {
+		return l.errorf("colon expected")
+	}
+	return lexIdentifier
+}
+
+// lexNumeric scans a numerical value (digit w/ optional quantifier)
+func lexNumeric(l *lexer) stateFn {
+	//    number             = 1*DIGIT [ QUANTIFIER ]
+
+	if !isDigit(l.peek()) {
+		return l.errorf("digit expected")
+	}
+
+iter:
+	for {
+		switch r := l.next(); {
+		case r == EOF:
+			return l.errorf("end of file reached")
+		case isDigit(r):
+			//absorb
+		default:
+			l.backup()
+			break iter
+		}
+	}
+
+	// accept optional QUANTIFIER
+	l.acceptAny([]rune{'K', 'M', 'G'})
+	return l.emit(itemNumeric)
+}
+
+// lexTestList scans an test-list open and closing tag
+func lexTestList(l *lexer) stateFn {
+	if l.acceptExact(TestListOpen) {
+		return l.emit(itemTestListOpen)
+	}
+
+	if l.acceptExact(TestListClose) {
+		return l.emit(itemTestListClose)
+	}
+
+	return l.errorf("test-list open/close expected")
+}
+
+// lexBlock scans an test-list open and closing tag
+func lexBlock(l *lexer) stateFn {
+	if l.acceptExact(BlockOpening) {
+		return l.emit(itemBlockOpen)
+	}
+
+	if l.acceptExact(BlockClosing) {
+		return l.emit(itemBlockClose)
+	}
+
+	return l.errorf("block open/close expected")
 }
