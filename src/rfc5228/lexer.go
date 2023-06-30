@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-// item represents a token or text string returned from the scanner.
+// item represents a token or input string returned from the scanner.
 type item struct {
 	typ itemType // The type of this item.
 	pos Pos      // The starting position, in bytes, of this item in the input string.
@@ -22,7 +22,7 @@ func (i item) String() string {
 type itemType int
 
 const (
-	itemError itemType = iota // error occurred; value is text of error
+	itemError itemType = iota // error occurred; value is input of error
 	itemEOF
 	itemComment
 	itemIdentifier
@@ -37,56 +37,9 @@ const (
 	itemBlockClose
 )
 
-const (
-	CR              = '\r'
-	LF              = '\n'
-	CRLF            = "\r\n"
-	DQUOTE          = '"'
-	BACKSLASH       = '\\'
-	DOT             = '.'
-	COMMA           = ','
-	STAR            = '*'
-	HTAB            = '\t'
-	SPACE           = ' '
-	HASH            = '#'
-	SLASH           = '/'
-	COLON           = ':'
-	SEMICOLON       = ';'
-	StringListOpen  = '['
-	StringListClose = ']'
-	BlockOpening    = '{'
-	BlockClosing    = '}'
-	TestListOpen    = '('
-	TestListClose   = ')'
-)
-
-const textMarker = "text:"
+const textMarker = "input:"
 
 const EOF = -1
-
-type scope int64
-
-const (
-	start scope = iota
-	/*
-		A test command is used as part of a control command.  It is used to
-		specify whether or not the block of code given to the control command
-		is executed.
-	*/
-	test
-	/*
-		An action command is an
-		identifier followed by zero or more arguments, terminated by a
-		semicolon.  Action commands do not take tests or blocks as arguments.
-	*/
-	action
-	/*
-		A control command is a command that affects the parsing or the flow
-		of execution of the Sieve script in some way.  A control structure is
-		a control command that ends with a block instead of a semicolon.
-	*/
-	control
-)
 
 // stateFn represents the state of the scanner as a function that returns the next state.
 type stateFn func(*lexer) stateFn
@@ -100,7 +53,6 @@ type lexer struct {
 	atEOF bool   // we have hit the end of input and returned EOF
 	width int    // width of the last rune read
 	item  item   // item to return to parser
-	scope scope  // the current lexer scope
 }
 
 // thisItem returns the item at the current input point with the specified type
@@ -116,7 +68,7 @@ func (l *lexer) emitItem(i item) stateFn {
 	return nil
 }
 
-// emit passes the trailing text as an item back to the parser.
+// emit passes the trailing input as an item back to the parser.
 func (l *lexer) emit(t itemType) stateFn {
 	return l.emitItem(l.thisItem(t))
 }
@@ -213,7 +165,7 @@ func (l *lexer) peekN(n int) []rune {
 	return result
 }
 
-// isExactPrefix tests if a run of runes equals a given prefix; this method does not acceptRunStringSequence any tokens (peek only)
+// isExactPrefix tests if a run of runes equals a given prefix; this method does not accept any tokens (peek only)
 func (l *lexer) isExactPrefix(prefix []rune) bool {
 	offset := int(l.pos)
 	width := 0
@@ -258,7 +210,7 @@ func (l *lexer) errorf(format string, args ...any) stateFn {
 // isWhitespace tests if a rune is a (part of a) whitespace character
 //
 // Whitespace is used to separate items.  Whitespace is made up of
-// tabs, newlines (CRLF, never just CR or LF), and the space character.
+// tabs, newlines (CRLF, never just '\r' or '\n'), and the space character.
 //
 // Comments are semantically equivalent to whitespace and can be used anyplace that whitespace is
 // (with one exception in multi-line strings, as described in the grammar).
@@ -271,7 +223,7 @@ func isWhitespace(r rune) bool {
 		r == '#'
 }
 
-func isOctetWithout(r rune, filters ...rune) bool {
+func isOctetFiltered(r rune, filters ...rune) bool {
 	for _, f := range filters {
 		if f == r || r < 0x01 || r > 0xFF {
 			return false
@@ -312,31 +264,31 @@ func lexStart(l *lexer) stateFn {
 			return lexWhitespace
 		case isAlpha(r) && l.isNotExactPrefix([]rune(textMarker)):
 			return lexIdentifier
-		case r == DQUOTE:
+		case r == '"':
 			return lexQuotedString
 		case r == 't' && l.isExactPrefix([]rune(textMarker)):
 			return lexMultiline
-		case r == StringListOpen:
+		case r == '[':
 			return lexStringList
-		case r == COMMA:
+		case r == ',':
 			l.next()   // we only peeked `r`, so we need to absorb it
 			l.ignore() // and we ignore it because we don't want it
-		case r == StringListClose:
+		case r == ']':
 			return lexStringList
-		case r == COLON:
+		case r == ':':
 			return lexTag
 		case isDigit(r):
 			return lexNumeric
-		case r == TestListOpen:
+		case r == '(':
 			return lexTestList
-		case r == TestListClose:
+		case r == ')':
 			return lexTestList
-		case r == SEMICOLON:
+		case r == ';':
 			l.next() // we only peeked `r`, so we need to absorb it
 			return l.emit(itemEnd)
-		case r == BlockOpening:
+		case r == '{':
 			return lexBlock
-		case r == BlockClosing:
+		case r == '}':
 			return lexBlock
 		default:
 			return l.errorf("unexpected rune")
@@ -350,19 +302,19 @@ func lexWhitespace(l *lexer) stateFn {
 		switch r := l.next(); {
 		case r == EOF:
 			return l.errorf("end of file reached")
-		case r == SPACE || r == HTAB:
+		case r == ' ' || r == '\t':
 			l.ignore()
-		case r == CR:
-			if next := l.next(); next != LF {
+		case r == '\r':
+			if next := l.next(); next != '\n' {
 				return l.errorf("unexpected carriage return")
 			}
 			l.ignore()
-		case r == LF:
+		case r == '\n':
 			return l.errorf("dangling line feed")
-		case r == HASH:
+		case r == '#':
 			return lexHashComment
-		case r == SLASH:
-			if next := l.next(); next != STAR {
+		case r == '/':
+			if next := l.next(); next != '*' {
 				return l.errorf("unexpected bracket comment")
 			}
 			return lexBracketComment
@@ -379,14 +331,14 @@ func lexBracketComment(l *lexer) stateFn {
 		switch r := l.next(); {
 		case r == EOF:
 			return l.errorf("end of file reached")
-		case isOctetWithout(r, CR, LF, STAR):
+		case isOctetFiltered(r, '\r', '\n', '*'):
 			// absorb.
-		case r == CR:
-			if next := l.next(); next != LF {
+		case r == '\r':
+			if next := l.next(); next != '\n' {
 				return l.errorf("unexpected carriage return")
 			}
-		case r == STAR:
-			if next := l.next(); next != SLASH {
+		case r == '*':
+			if next := l.next(); next != '/' {
 				l.backup() // restore rune
 			} else {
 				return l.emit(itemComment)
@@ -403,10 +355,15 @@ func lexHashComment(l *lexer) stateFn {
 		switch r := l.next(); {
 		case r == EOF:
 			return l.errorf("end of file reached")
-		case isOctetWithout(r, CR, LF):
+		case isOctetFiltered(r, '\r', '\n'):
 			// absorb.
-		case r == CR:
-			if l.acceptExact(LF) {
+		case r == '\r':
+			// we don't want to include the trailing CRLF in the token value
+			// as we already consume '\r' and we don't know if the next character is going to be '\n',
+			// we need to peek '\n', if the next char is indeed '\n', we can backup the token stream
+			// and let the whitespace state absorb the CRLF
+			if l.isExactPrefix([]rune{'\n'}) {
+				l.backup()
 				return l.emit(itemComment)
 			} else {
 				return l.errorf("unexpected carriage return")
@@ -440,7 +397,7 @@ func lexIdentifier(l *lexer) stateFn {
 // lexQuotedString scans a quoted string
 func lexQuotedString(l *lexer) stateFn {
 
-	if l.acceptExact(DQUOTE) == false {
+	if l.acceptExact('"') == false {
 		return l.errorf("quoted-string opening quote expected")
 	}
 
@@ -448,7 +405,7 @@ func lexQuotedString(l *lexer) stateFn {
 		switch r := l.next(); {
 		case r == EOF:
 			return l.errorf("end of file reached")
-		case isOctetWithout(r, CR, LF, DQUOTE, BACKSLASH):
+		case isOctetFiltered(r, '\r', '\n', '"', '\\'):
 			// absorb
 		case r == '\\':
 			{
@@ -459,11 +416,20 @@ func lexQuotedString(l *lexer) stateFn {
 				case next == '\\':
 					// absorb
 				default:
+					/*
+						TODO
+							Scripts SHOULD NOT escape other characters with a backslash.
+							An undefined escape sequence (such as "\a" in a context where "a" has
+							no special meaning) is interpreted as if there were no backslash (in
+							this case, "\a" is just "a"), though that may be changed by
+							extensions.
+					*/
+
 					return l.errorf("quoted-other not supported")
 				}
 			}
-		case r == CR:
-			if l.acceptExact(LF) == false {
+		case r == '\r':
+			if l.acceptExact('\n') == false {
 				return l.errorf("dangling carriage return")
 			}
 		case r == '"':
@@ -477,23 +443,23 @@ func lexQuotedString(l *lexer) stateFn {
 // lexMultiline scans a multi-line string
 func lexMultiline(l *lexer) stateFn {
 
-	var endSequence = []rune{DOT, CR, LF}
+	var endSequence = []rune{'.', '\r', '\n'}
 
-	// text:
+	// input:
 	if l.acceptRunStringSequence(textMarker) == false {
-		return l.errorf("missing text marker")
+		return l.errorf("missing input marker")
 	}
 
-	// *(SP / HTAB)
+	// *(SP / '\t)
 	l.acceptRunAny(" \t")
 
 	// *(hash-comment)
-	if l.acceptExact(HASH) {
+	if l.acceptExact('#') {
 		for {
 			switch r := l.next(); {
 			case r == EOF:
 				return l.errorf("end of file reached")
-			case isOctetWithout(r, CR, LF):
+			case isOctetFiltered(r, '\r', '\n'):
 				// absorb
 			default:
 				l.backup()
@@ -503,7 +469,7 @@ func lexMultiline(l *lexer) stateFn {
 	}
 
 	// CRLF
-	if l.acceptRunStringSequence(CRLF) == false {
+	if l.acceptRunStringSequence("\r\n") == false {
 		return l.errorf("CRLF expected")
 	}
 
@@ -517,10 +483,10 @@ func lexMultiline(l *lexer) stateFn {
 		switch r := l.next(); {
 		case r == EOF:
 			return l.errorf("end of file reached")
-		case isOctetWithout(r, CR, LF):
+		case isOctetFiltered(r, '\r', '\n'):
 			// absorb
-		case r == CR:
-			if l.acceptExact(LF) == false {
+		case r == '\r':
+			if l.acceptExact('\n') == false {
 				return l.errorf("unexpected carriage return")
 			}
 			if l.acceptRunSequence(endSequence) {
@@ -535,9 +501,9 @@ func lexMultiline(l *lexer) stateFn {
 // lexStringList scans a string-list open or close tag
 func lexStringList(l *lexer) stateFn {
 	switch r := l.next(); {
-	case r == StringListOpen:
+	case r == '[':
 		return l.emit(itemStringListOpen)
-	case r == StringListClose:
+	case r == ']':
 		return l.emit(itemStringListClose)
 	}
 	return l.errorf("string list open/close expected")
@@ -545,7 +511,7 @@ func lexStringList(l *lexer) stateFn {
 
 // lexTag scans a tag
 func lexTag(l *lexer) stateFn {
-	if !l.acceptExact(COLON) {
+	if !l.acceptExact(':') {
 		return l.errorf("colon expected")
 	}
 	return lexIdentifier
@@ -580,9 +546,9 @@ iter:
 // lexTestList scans an test-list open and closing tag
 func lexTestList(l *lexer) stateFn {
 	switch r := l.next(); {
-	case r == TestListOpen:
+	case r == '(':
 		return l.emit(itemTestListOpen)
-	case r == TestListClose:
+	case r == ')':
 		return l.emit(itemTestListClose)
 	}
 	return l.errorf("test-list open/close expected")
@@ -591,10 +557,10 @@ func lexTestList(l *lexer) stateFn {
 // lexBlock scans an test-list open and closing tag
 func lexBlock(l *lexer) stateFn {
 	switch r := l.next(); {
-	case r == BlockOpening:
-		return l.emit(itemTestListOpen)
-	case r == TestListClose:
-		return l.emit(itemTestListClose)
+	case r == '{':
+		return l.emit(itemBlockOpen)
+	case r == '}':
+		return l.emit(itemBlockClose)
 	}
 	return l.errorf("block open/close expected")
 }
