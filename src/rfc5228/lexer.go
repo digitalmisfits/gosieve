@@ -1,3 +1,28 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2023 Erik-Paul Dittmer (epdittmer@s114.nl)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NON INFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR
+ * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 package rfc5228
 
 import (
@@ -152,19 +177,6 @@ func (l *lexer) peek() rune {
 	return r
 }
 
-// peek does return but does not accepts runes from the input
-func (l *lexer) peekN(n int) []rune {
-	offset := int(l.pos)
-	width := 0
-	var result []rune
-	for i := 0; i < n; i++ {
-		r, size := utf8.DecodeRuneInString(l.input[offset+width:])
-		width += size
-		result = append(result, r)
-	}
-	return result
-}
-
 // isExactPrefix tests if a run of runes equals a given prefix; this method does not accept any tokens (peek only)
 func (l *lexer) isExactPrefix(prefix []rune) bool {
 	offset := int(l.pos)
@@ -198,7 +210,7 @@ func (l *lexer) nextItem() item {
 }
 
 // errorf returns an error token and terminates the scan by passing
-// back a nil pointer that will be the next state, terminating l.nextItem.
+// back a nil pointer that will be the next state, terminating l.next.
 func (l *lexer) errorf(format string, args ...any) stateFn {
 	l.item = item{itemError, l.start, fmt.Sprintf(format, args...)}
 	l.start = 0
@@ -224,8 +236,11 @@ func isWhitespace(r rune) bool {
 }
 
 func isOctetFiltered(r rune, filters ...rune) bool {
+	if r < 0x01 || r > 0xFF {
+		return false
+	}
 	for _, f := range filters {
-		if f == r || r < 0x01 || r > 0xFF {
+		if f == r {
 			return false
 		}
 	}
@@ -259,7 +274,7 @@ func lexStart(l *lexer) stateFn {
 	for {
 		switch r := l.peek(); {
 		case r == EOF:
-			return l.errorf("end of file reached")
+			return nil
 		case isWhitespace(r):
 			return lexWhitespace
 		case isAlpha(r) && l.isNotExactPrefix([]rune(textMarker)):
@@ -301,7 +316,7 @@ func lexWhitespace(l *lexer) stateFn {
 	for {
 		switch r := l.next(); {
 		case r == EOF:
-			return l.errorf("end of file reached")
+			return nil
 		case r == ' ' || r == '\t':
 			l.ignore()
 		case r == '\r':
@@ -330,7 +345,7 @@ func lexBracketComment(l *lexer) stateFn {
 	for {
 		switch r := l.next(); {
 		case r == EOF:
-			return l.errorf("end of file reached")
+			return nil
 		case isOctetFiltered(r, '\r', '\n', '*'):
 			// absorb.
 		case r == '\r':
@@ -354,7 +369,7 @@ func lexHashComment(l *lexer) stateFn {
 	for {
 		switch r := l.next(); {
 		case r == EOF:
-			return l.errorf("end of file reached")
+			return nil
 		case isOctetFiltered(r, '\r', '\n'):
 			// absorb.
 		case r == '\r':
@@ -376,7 +391,6 @@ func lexHashComment(l *lexer) stateFn {
 
 // lexIdentifier scans an identifier
 func lexIdentifier(l *lexer) stateFn {
-
 	if r := l.next(); !isAlpha(r) {
 		return l.errorf("expected alpha rune as first character")
 	}
@@ -384,7 +398,7 @@ func lexIdentifier(l *lexer) stateFn {
 	for {
 		switch r := l.next(); {
 		case r == EOF:
-			return l.errorf("end of file reached")
+			return nil
 		case isAlphaNumeric(r):
 			// absorb.
 		default:
@@ -396,7 +410,6 @@ func lexIdentifier(l *lexer) stateFn {
 
 // lexQuotedString scans a quoted string
 func lexQuotedString(l *lexer) stateFn {
-
 	if l.acceptExact('"') == false {
 		return l.errorf("quoted-string opening quote expected")
 	}
@@ -404,7 +417,7 @@ func lexQuotedString(l *lexer) stateFn {
 	for {
 		switch r := l.next(); {
 		case r == EOF:
-			return l.errorf("end of file reached")
+			return nil
 		case isOctetFiltered(r, '\r', '\n', '"', '\\'):
 			// absorb
 		case r == '\\':
@@ -424,7 +437,6 @@ func lexQuotedString(l *lexer) stateFn {
 							this case, "\a" is just "a"), though that may be changed by
 							extensions.
 					*/
-
 					return l.errorf("quoted-other not supported")
 				}
 			}
@@ -442,7 +454,6 @@ func lexQuotedString(l *lexer) stateFn {
 
 // lexMultiline scans a multi-line string
 func lexMultiline(l *lexer) stateFn {
-
 	var endSequence = []rune{'.', '\r', '\n'}
 
 	// input:
@@ -458,7 +469,7 @@ func lexMultiline(l *lexer) stateFn {
 		for {
 			switch r := l.next(); {
 			case r == EOF:
-				return l.errorf("end of file reached")
+				return nil
 			case isOctetFiltered(r, '\r', '\n'):
 				// absorb
 			default:
@@ -482,7 +493,7 @@ func lexMultiline(l *lexer) stateFn {
 	for {
 		switch r := l.next(); {
 		case r == EOF:
-			return l.errorf("end of file reached")
+			return nil
 		case isOctetFiltered(r, '\r', '\n'):
 			// absorb
 		case r == '\r':
@@ -529,7 +540,7 @@ iter:
 	for {
 		switch r := l.next(); {
 		case r == EOF:
-			return l.errorf("end of file reached")
+			return nil
 		case isDigit(r):
 			//absorb
 		default:

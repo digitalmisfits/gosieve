@@ -5,10 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="66953ff5-ab89-40bb-9d6f-0c796eefa87e" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/rfc5228/parser_test.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/input/comment.sieve" beforeDir="false" afterPath="$PROJECT_DIR$/input/comment.sieve" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/rfc5228/lexer.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/rfc5228/lexer.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/rfc5228/lexer_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/rfc5228/lexer_test.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/rfc5228/node.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/rfc5228/node.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/rfc5228/parser.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/rfc5228/parser.go" afterDir="false" />
     </list>
@@ -39,15 +40,22 @@
     "RunOnceActivity.go.migrated.go.modules.settings": "true",
     "WebServerToolWindowFactoryState": "false",
     "go.import.settings.migrated": "true",
+    "last_opened_file_path": "/Users/epdittmer/IdeaProjects/gosieve/input",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "copyright.profiles",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
-  <component name="RunManager" selected="Go Test.TestLexer in gosieve/src/rfc5228">
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/input" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Go Test.TestParser in gosieve/src/rfc5228">
     <configuration name="go build lexer.go" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
       <module name="gosieve" />
       <working_directory value="$PROJECT_DIR$" />
@@ -55,15 +63,6 @@
       <package value="gosieve" />
       <directory value="$PROJECT_DIR$" />
       <filePath value="$PROJECT_DIR$/src/rfc5228/lexer.go" />
-      <method v="2" />
-    </configuration>
-    <configuration name="go build main.go" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
-      <module name="gosieve" />
-      <working_directory value="$PROJECT_DIR$" />
-      <kind value="FILE" />
-      <package value="gosieve" />
-      <directory value="$PROJECT_DIR$" />
-      <filePath value="$PROJECT_DIR$/src/main.go" />
       <method v="2" />
     </configuration>
     <configuration name="go build reader.go" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
@@ -87,6 +86,18 @@
       <pattern value="^\QTestLexer\E$" />
       <method v="2" />
     </configuration>
+    <configuration name="TestParser in gosieve/src/rfc5228" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="gosieve" />
+      <working_directory value="$PROJECT_DIR$/src/rfc5228" />
+      <root_directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <package value="gosieve/src/rfc5228" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <pattern value="^\QTestParser\E$" />
+      <method v="2" />
+    </configuration>
     <configuration name="lexer_test.go" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="gosieve" />
       <working_directory value="$PROJECT_DIR$/src/rfc5228" />
@@ -100,11 +111,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Go Test.TestParser in gosieve/src/rfc5228" />
         <item itemvalue="Go Test.TestLexer in gosieve/src/rfc5228" />
         <item itemvalue="Go Build.go build reader.go" />
         <item itemvalue="Go Test.lexer_test.go" />
         <item itemvalue="Go Build.go build lexer.go" />
-        <item itemvalue="Go Build.go build main.go" />
       </list>
     </recent_temporary>
   </component>
@@ -116,7 +127,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1687446309966</updated>
-      <workItem from="1687446311181" duration="113731000" />
+      <workItem from="1687446311181" duration="146287000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <created>1687779065631</created>
@@ -153,7 +164,14 @@
       <option name="project" value="LOCAL" />
       <updated>1688080551778</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="switches">
+      <created>1688089120846</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1688089120846</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -168,5 +186,16 @@
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
+          <url>file://$PROJECT_DIR$/src/rfc5228/parser_test.go</url>
+          <line>45</line>
+          <option name="timeStamp" value="47" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>
